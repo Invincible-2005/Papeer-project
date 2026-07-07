@@ -6,7 +6,9 @@ A conversational AI assistant for students and researchers to upload, explore, a
 
 ## Project Description
 
-Papeer is a Retrieval-Augmented Generation (RAG) application built with LangGraph, LangChain, and Streamlit. Users upload research papers (PDF, TXT, Markdown, web URL, or ArXiv ID) into isolated sessions, then ask questions about them. The system routes each query intelligently — answering directly from paper content, searching the web for current developments, or verifying whether a claim from a paper has been superseded by newer research.
+Papeer is a decoupled Retrieval-Augmented Generation (RAG) application. The backend is built with **FastAPI**, **LangGraph**, and **LangChain**, while the frontend is a modern **React** Single Page Application using **Vite**, **TypeScript**, **Tailwind CSS**, and **Shadcn/ui**.
+
+Users upload research papers (PDF, TXT, Markdown, web URL, or ArXiv ID) into isolated sessions, then ask questions about them. The system routes each query intelligently — answering directly from paper content, searching the web for current developments, or verifying whether a claim from a paper has been superseded by newer research.
 
 ---
 
@@ -31,8 +33,8 @@ Papeer is a Retrieval-Augmented Generation (RAG) application built with LangGrap
 | **Multi-session UI** | Open multiple independent sessions simultaneously, each with its own paper collection and conversation history |
 | **Auto Session Naming** | Session titles are automatically generated (3–5 words) from the first message using the LLM |
 | **Multiple Paper Sources** | Load papers via file upload (PDF, TXT, MD), web URL, or ArXiv ID/title search |
-| **Graph State Inspector** | Each assistant turn exposes an expandable JSON view of the LangGraph state for debugging |
-| **Streaming Responses** | Assistant responses stream token-by-token with a cursor animation |
+| **Real-time Streaming** | Assistant responses stream token-by-token over Server-Sent Events (SSE) for a snappy user experience |
+| **Modern UX** | A sleek React frontend featuring dark mode, floating UI elements, and a responsive sidebar |
 
 ---
 
@@ -42,12 +44,12 @@ Papeer is a Retrieval-Augmented Generation (RAG) application built with LangGrap
 Launch the app and a default session is created automatically. Use **New Chat** in the sidebar to start additional sessions.
 
 ### 2. Upload papers
-In the sidebar, choose one of three loading methods:
+In the sidebar, choose one of three loading methods under the Documents panel:
 - **File Upload** — drag and drop a PDF, TXT, or MD file
 - **Web URL** — paste one or more URLs (one per line)
 - **ArXiv** — enter a paper title or ArXiv ID (e.g. `2303.08774`)
 
-Loaded papers are listed under "Loaded Papers" in the sidebar.
+Loaded papers are listed under "Loaded Documents" in the sidebar.
 
 ### 3. Ask questions
 Type in the chat input. Example queries:
@@ -56,47 +58,53 @@ Type in the chat input. Example queries:
 - *"What are the latest developments in diffusion models?"*
 
 ### 4. Use `/btw` for off-topic questions
-Prefix any message with `/btw` to ask a question outside the current paper context. These exchanges are not saved to the session:
+Prefix any message with `/btw` to ask a question outside the current paper context. These exchanges are streamed instantly and are not saved to the session:
 ```
 /btw What is the difference between RLHF and DPO?
 ```
 
 ---
 
-## Installation
+## Installation & Running Locally
 
-Papeer uses [uv](https://github.com/astral-sh/uv) for dependency management.
+Papeer uses a decoupled architecture. You will need two terminal windows.
+
+### 1. Backend (FastAPI)
+The backend uses [uv](https://github.com/astral-sh/uv) for dependency management.
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd rag-papeer-project
+cd rag-backend
 
-# Install all dependencies
+# Install dependencies
 uv sync
 
 # Copy the example env file and fill in your keys
 cp .env.example .env
 
-# Run the Streamlit app
-uv run streamlit run app.py
+# Run the FastAPI server (starts on http://localhost:8000)
+uv run uvicorn main:app --reload --port 8000
 ```
 
-To add a new dependency:
+### 2. Frontend (React + Vite)
+The frontend uses standard `npm`.
+
 ```bash
-uv add <package-name>
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run the Vite dev server (starts on http://localhost:5173)
+npm run dev
 ```
 
-To run a backend module directly (useful during development):
-```bash
-uv run python -m backend.<module_name>
-```
+Visit `http://localhost:5173` in your browser to use the app!
 
 ---
 
 ## Required API Keys
 
-All keys are loaded from a `.env` file in the project root via `python-dotenv`.
+All keys are loaded from a `.env` file in the `rag-backend` root directory via `python-dotenv`.
 
 | Variable | Purpose | Where to Get It |
 |---|---|---|
@@ -117,19 +125,32 @@ QDRANT_API_KEY=your-qdrant-api-key
 
 ## Architecture
 
-```
-app.py (Streamlit UI)
-│
-├── backend/rag_graph.py       — LangGraph RAG workflow (router → retrieve/verify/direct → answer)
-├── backend/btw_handler.py     — Off-topic /btw handler (streaming, not stored in history)
-├── backend/vector_store.py    — Qdrant Cloud vector store with cached embeddings
-├── backend/paper_loader.py    — Multi-source paper loader (PDF, TXT, MD, URL, ArXiv)
-└── backend/models.py          — Pydantic models for routing and structured LLM outputs
+```text
+rag-backend/ (FastAPI)
+├── main.py                  — API entry point and CORS configuration
+├── routes/
+│   ├── chat.py              — SSE streaming endpoint for RAG chat
+│   ├── documents.py         — Endpoints for uploading and listing papers
+│   ├── sessions.py          — Endpoints for session metadata and history
+│   └── btw.py               — Endpoint for the off-topic side channel
+└── backend/
+    ├── rag_graph.py         — LangGraph RAG workflow
+    ├── btw_handler.py       — Off-topic /btw handler
+    ├── vector_store.py      — Qdrant Cloud vector store with cached embeddings
+    ├── paper_loader.py      — Multi-source paper loader
+    └── models.py            — Pydantic models for routing
+
+frontend/ (React)
+├── src/
+│   ├── App.tsx              — Main chat UI and sidebar layout
+│   ├── api/client.ts        — Frontend API client for talking to FastAPI
+│   ├── components/          — UI components (Shadcn/ui, DocumentPanel, etc.)
+│   └── index.css            — Tailwind styles and theme tokens
 ```
 
 ### RAG Graph Decision Flow
 
-```
+```text
 User Query
     │
     ▼
@@ -153,11 +174,10 @@ User Query
 |---|---|
 | **Embedding cache** | `CacheBackedEmbeddings` writes to `./embedding_cache/` so identical text is never re-embedded across sessions — reduces OpenAI API calls and latency |
 | **Session isolation** | Each session gets its own Qdrant collection (`papeer_{session_id}`) and a separate LangGraph SQLite checkpointer thread — prevents cross-session data leakage |
-| **Graph caching** | The LangGraph graph is built once with `@st.cache_resource` and reused across all Streamlit reruns |
-| **Streaming responses** | `graph.stream()` is used with message mode so responses appear token-by-token rather than waiting for the full generation |
-| **Session persistence** | `sessions.json` persists session metadata; SQLite stores full conversation state — app restarts restore the previous session seamlessly |
+| **FastAPI Streaming** | The `StreamingResponse` returns LangGraph events over SSE, parsed by a custom `ReadableStream` reader in React for a flawless token-by-token experience |
+| **Decoupled Architecture** | Breaking out of Streamlit into FastAPI + React allows for custom routing, complex UI components, and infinite styling flexibility |
+| **Session persistence** | `sessions.json` persists session metadata; SQLite stores full conversation state — refreshing the React app restores the previous session seamlessly |
 | **Temp file cleanup** | Uploaded files are written to a temp path, processed, then deleted regardless of success or failure |
-| **Async evaluation** | The evaluation pipeline uses throttled concurrency (3 workers, 5 s throttle) to stay within API rate limits |
 | **ArXiv reliability** | Claim verification uses two targeted Tavily searches (general web + `site:arxiv.org`) instead of the `arxiv` Python library, which had reliability issues |
 
 ---
@@ -173,29 +193,3 @@ User Query
 | **Session-scoped Qdrant collections** | Prevents papers from one session leaking into another. Each collection is namespaced by session UUID |
 | **Claim verification uses two searches** | A general web search catches blog posts and news; an `arxiv.org`-targeted search catches academic superseding work. One search alone misses one of these two important source types |
 | **`k=4` default retrieval chunks** | Balances context richness against prompt length. Too few chunks miss relevant content; too many dilute focus and increase cost |
-
----
-
-## Evaluation
-
-Papeer includes an automated RAG evaluation pipeline (`evaluate.py`) built on [DeepEval](https://github.com/confident-ai/deepeval).
-
-### Metrics (threshold: 0.7)
-
-| Metric | What It Measures |
-|---|---|
-| **Contextual Precision** | Are the retrieved chunks relevant to the query? |
-| **Contextual Recall** | Does the retrieved context cover all expected information? |
-| **Contextual Relevancy** | Is the context relevant to both the input and the expected output? |
-| **Answer Relevancy** | Does the generated answer actually address the question? |
-| **Faithfulness** | Is the answer grounded in the retrieved context (no hallucination)? |
-
-### Running Evaluation
-
-```bash
-uv run python evaluate.py
-```
-
-- On first run, synthetic golden test cases are generated from `documents/Openclaw_Research_Report.pdf` and cached to `goldens.json`
-- Results are written to `eval_results.json` with per-test metric scores, pass/fail status, and failure reasons
-- Subsequent runs reuse cached goldens unless `goldens.json` is deleted
