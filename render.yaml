@@ -14,5 +14,7 @@ services:
         sync: false
       - key: QDRANT_API_KEY
         sync: false
+      - key: USER_AGENT
+        value: papeer/1.0
       - key: PYTHON_VERSION
-        value: 3.13.0
+        value: 3.12.0
