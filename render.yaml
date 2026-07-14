@@ -3,8 +3,8 @@ services:
     name: papeer-backend
     runtime: python
     rootDir: rag_backend
-    buildCommand: pip install uv && uv sync
-    startCommand: uv run uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install uv && uv python install 3.12 && uv sync --python 3.12
+    startCommand: uv run --python 3.12 uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: GOOGLE_API_KEY
         sync: false
