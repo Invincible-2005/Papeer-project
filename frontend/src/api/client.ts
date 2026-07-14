@@ -1,10 +1,16 @@
 /**
  * API Client
+ * 
+ * In production (Vercel), set the VITE_API_URL environment variable to your
+ * Render backend URL, e.g. https://papeer-backend.onrender.com
+ * Locally, this defaults to '' so relative /api/ paths work via Vite proxy.
  */
+
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 export const checkHealth = async () => {
   try {
-    const response = await fetch('/api/health');
+    const response = await fetch(`${API_BASE}/api/health`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -17,7 +23,7 @@ export const checkHealth = async () => {
 
 export const sendChatMessage = async (message: string, sessionId: string) => {
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,25 +52,25 @@ export type SessionMeta = {
 }
 
 export const getSessions = async (): Promise<SessionMeta[]> => {
-  const response = await fetch('/api/sessions');
+  const response = await fetch(`${API_BASE}/api/sessions`);
   if (!response.ok) throw new Error("Failed to fetch sessions");
   return response.json();
 };
 
 export const createSession = async (): Promise<{ session_id: string }> => {
-  const response = await fetch('/api/sessions', { method: 'POST' });
+  const response = await fetch(`${API_BASE}/api/sessions`, { method: 'POST' });
   if (!response.ok) throw new Error("Failed to create session");
   return response.json();
 };
 
 export const getSessionMessages = async (sessionId: string) => {
-  const response = await fetch(`/api/sessions/${sessionId}/messages`);
+  const response = await fetch(`${API_BASE}/api/sessions/${sessionId}/messages`);
   if (!response.ok) throw new Error("Failed to fetch messages");
   return response.json();
 };
 
 export const renameSession = async (sessionId: string, firstMessage: string): Promise<{ name: string }> => {
-  const response = await fetch(`/api/sessions/${sessionId}/rename`, {
+  const response = await fetch(`${API_BASE}/api/sessions/${sessionId}/rename`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ first_message: firstMessage })
@@ -81,7 +87,7 @@ export const streamChatMessage = async (
   onError: (err: any) => void
 ) => {
   try {
-    const response = await fetch('/api/chat/stream', {
+    const response = await fetch(`${API_BASE}/api/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, session_id: sessionId }),
@@ -138,7 +144,7 @@ export const streamBtwMessage = async (
   onError: (err: any) => void
 ) => {
   try {
-    const response = await fetch('/api/btw', {
+    const response = await fetch(`${API_BASE}/api/btw`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -199,7 +205,7 @@ export type LoadResponse = {
 }
 
 export const getDocuments = async (sessionId: string): Promise<DocumentInfo[]> => {
-  const response = await fetch(`/api/documents/${sessionId}`);
+  const response = await fetch(`${API_BASE}/api/documents/${sessionId}`);
   if (!response.ok) throw new Error("Failed to fetch documents");
   return response.json();
 };
@@ -209,7 +215,7 @@ export const uploadFile = async (file: File, sessionId: string): Promise<LoadRes
   formData.append('file', file);
   formData.append('session_id', sessionId);
 
-  const response = await fetch('/api/documents/upload', {
+  const response = await fetch(`${API_BASE}/api/documents/upload`, {
     method: 'POST',
     body: formData,  // No Content-Type header — browser sets it with boundary
   });
@@ -221,7 +227,7 @@ export const uploadFile = async (file: File, sessionId: string): Promise<LoadRes
 };
 
 export const loadUrl = async (url: string, sessionId: string): Promise<LoadResponse> => {
-  const response = await fetch('/api/documents/url', {
+  const response = await fetch(`${API_BASE}/api/documents/url`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url, session_id: sessionId }),
@@ -234,7 +240,7 @@ export const loadUrl = async (url: string, sessionId: string): Promise<LoadRespo
 };
 
 export const loadArxiv = async (query: string, sessionId: string): Promise<LoadResponse> => {
-  const response = await fetch('/api/documents/arxiv', {
+  const response = await fetch(`${API_BASE}/api/documents/arxiv`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, session_id: sessionId }),

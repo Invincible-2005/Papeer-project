@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: papeer-backend
+    runtime: python
+    rootDir: rag_backend
+    buildCommand: pip install uv && uv sync
+    startCommand: uv run uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.13.0
