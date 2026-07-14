@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, MessageSquare, Menu, Send, Loader2, ArrowDown } from "lucide-react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,11 +26,11 @@ type ChatMessage = {
   isBtw?: boolean
 }
 
-const SidebarContent = ({ 
-  sessions, 
-  currentSessionId, 
-  handleNewSession, 
-  handleSelectSession 
+const SidebarContent = ({
+  sessions,
+  currentSessionId,
+  handleNewSession,
+  handleSelectSession
 }: {
   sessions: SessionMeta[],
   currentSessionId: string | null,
@@ -121,7 +123,7 @@ function App() {
       scrollToBottom();
       return;
     }
-    
+
     setCurrentSessionId(id);
     setIsLoadingMessages(true);
     setMessages([]);
@@ -152,13 +154,13 @@ function App() {
 
     const userMessage = inputMessage;
     setInputMessage('');
-    
+
     const isBtw = userMessage.trim().toLowerCase().startsWith('/btw');
     const btwQuery = isBtw ? userMessage.trim().substring(4).trim() : '';
 
     if (isBtw && !btwQuery) {
       setMessages(prev => [
-        ...prev, 
+        ...prev,
         { role: 'user', content: userMessage, isBtw: true },
         { role: 'assistant', content: "Please add a question after `/btw`, e.g. `/btw What is attention?`", isBtw: true }
       ]);
@@ -167,7 +169,7 @@ function App() {
 
     // Add user message AND an empty placeholder for the assistant's streaming response
     setMessages(prev => [
-      ...prev, 
+      ...prev,
       { role: 'user', content: userMessage, isBtw },
       { role: 'assistant', content: "", isBtw }
     ]);
@@ -180,9 +182,10 @@ function App() {
         (chunk) => {
           setMessages(prev => {
             const newMessages = [...prev];
-            const lastMsg = newMessages[newMessages.length - 1];
+            const lastIndex = newMessages.length - 1;
+            const lastMsg = newMessages[lastIndex];
             if (lastMsg.role === 'assistant') {
-              lastMsg.content += chunk;
+              newMessages[lastIndex] = { ...lastMsg, content: lastMsg.content + chunk };
             }
             return newMessages;
           });
@@ -212,9 +215,10 @@ function App() {
         // onChunk: append the new text chunk to the very last message in the array
         setMessages(prev => {
           const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
+          const lastIndex = newMessages.length - 1;
+          const lastMsg = newMessages[lastIndex];
           if (lastMsg.role === 'assistant') {
-            lastMsg.content += chunk;
+            newMessages[lastIndex] = { ...lastMsg, content: lastMsg.content + chunk };
           }
           return newMessages;
         });
@@ -273,14 +277,14 @@ function App() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-72 flex-col border-r bg-muted/30 p-4 shrink-0">
         <div className="flex items-center justify-between mb-6 px-2">
-          <h1 className="font-bold text-xl tracking-tight">Papeer UI</h1>
+          <h1 className="font-bold text-xl tracking-tight">Papeer</h1>
           {health ? (
             <div className="w-2 h-2 rounded-full bg-green-500" title="Connected to Backend" />
           ) : (
             <div className="w-2 h-2 rounded-full bg-red-500" title="Disconnected" />
           )}
         </div>
-        <SidebarContent 
+        <SidebarContent
           sessions={sessions}
           currentSessionId={currentSessionId}
           handleNewSession={handleNewSession}
@@ -302,7 +306,7 @@ function App() {
                 <SheetHeader className="mb-6 text-left">
                   <SheetTitle>Papeer UI</SheetTitle>
                 </SheetHeader>
-                <SidebarContent 
+                <SidebarContent
                   sessions={sessions}
                   currentSessionId={currentSessionId}
                   handleNewSession={handleNewSession}
@@ -339,8 +343,10 @@ function App() {
                     ? 'bg-primary text-primary-foreground rounded-tr-sm'
                     : 'bg-muted rounded-tl-sm'
                     }`}>
-                    <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
-                      {m.content}
+                    <div className="prose dark:prose-invert max-w-none leading-relaxed prose-p:leading-relaxed prose-pre:p-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {m.content}
+                      </ReactMarkdown>
                     </div>
                     {m.isBtw && (
                       <p className="text-[10px] uppercase tracking-wider opacity-60 mt-2 font-semibold">
@@ -382,9 +388,8 @@ function App() {
           <div className="max-w-3xl mx-auto">
             <form
               onSubmit={handleSendMessage}
-              className={`relative flex items-end bg-background border shadow-sm rounded-2xl p-2 transition-all ${
-                isBtwInput ? 'border-indigo-500/50 ring-1 ring-indigo-500/30' : ''
-              }`}
+              className={`relative flex items-end bg-background border shadow-sm rounded-2xl p-2 transition-all ${isBtwInput ? 'border-indigo-500/50 ring-1 ring-indigo-500/30' : ''
+                }`}
             >
               {isBtwInput && (
                 <div className="absolute -top-6 left-4 bg-indigo-500 text-white text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm">

@@ -138,11 +138,19 @@ def chat_stream(request: ChatRequest):
     """
     Stream the chat response via Server-Sent Events (SSE).
     """
-    # Only need to initialize required fields, LangGraph fills the rest
     input_state = {
         "messages": [HumanMessage(content=request.message)],
         "session_id": request.session_id,
         "query": request.message,
+        "route": None,
+        "retrieved_docs": [],
+        "retrieval_attempts": 0,
+        "claim_verdict": None,
+        "claim_source": None,
+        "superseding_papers": [],
+        "answer": None,
+        "is_relevant": None,
+        "rewrite_count": 0,
     }
     config = {"configurable": {"thread_id": request.session_id}}
 
@@ -161,6 +169,13 @@ def chat_stream(request: ChatRequest):
                         content = clean_content(chunk.content)
                         if content:
                             # Standard SSE format: data: {"chunk": "..."} \n\n
+                            yield f"data: {json.dumps({'chunk': content})}\n\n"
+                    elif type_name == "AIMessage":
+                        # Some routes (e.g. verify_claim) build the full answer
+                        # without streaming through the LLM, so we get a complete
+                        # AIMessage instead of incremental chunks.
+                        content = clean_content(chunk.content)
+                        if content:
                             yield f"data: {json.dumps({'chunk': content})}\n\n"
                             
             # Yield a finish marker so the frontend knows it's complete
