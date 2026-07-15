@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://papeer-project.onrender.com/api/:path*"
+    }
+  ]
+}
