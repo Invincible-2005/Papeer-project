@@ -6,6 +6,7 @@
  * Locally, this defaults to '' so relative /api/ paths work via Vite proxy.
  */
 
+// build: force-refresh
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 export const checkHealth = async () => {
